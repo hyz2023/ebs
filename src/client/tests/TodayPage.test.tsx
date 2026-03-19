@@ -1,9 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import * as dateLib from '../lib/date';
 import { TodayPage } from '../routes/TodayPage';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('TodayPage', () => {
   it('loads and shows the current account summary', async () => {
@@ -36,7 +40,6 @@ describe('TodayPage', () => {
     ).toBeInTheDocument();
 
     fetchMock.mockRestore();
-    vi.restoreAllMocks();
   });
 
   it('submits a successful settlement and shows the result state', async () => {
@@ -107,7 +110,6 @@ describe('TodayPage', () => {
     );
 
     fetchMock.mockRestore();
-    vi.restoreAllMocks();
   });
 
   it('submits level 3 when severe violation is selected', async () => {
@@ -149,7 +151,13 @@ describe('TodayPage', () => {
     render(<TodayPage />);
 
     await screen.findByText('余额');
-    await user.click(screen.getByRole('button', { name: '严重违规 / 熔断' }));
+    expect(screen.getByText('严重违规 / 熔断')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '用于一票否决的严重违规情况，将直接按等级 3 结算并清零连胜。',
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '启用熔断' }));
     await user.click(screen.getByRole('button', { name: '立即结算' }));
 
     await waitFor(() => {
@@ -286,6 +294,80 @@ describe('TodayPage', () => {
       expect(screen.getByText('3 天奖励 +20')).toBeInTheDocument();
     });
 
+    fetchMock.mockRestore();
+  });
+
+  it('keeps the account state and shows an error when settlement fails', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(dateLib, 'getTodayDateString').mockReturnValue('2026-03-20');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            account: {
+              accountId: 'primary',
+              balance: 245,
+              streakCount: 3,
+              shieldStock: 0,
+              lastSettlementDate: '2026-03-19',
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: 'Unknown settlement error',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+
+    render(<TodayPage />);
+
+    await screen.findByText('余额');
+    await user.click(screen.getByRole('button', { name: '起航' }));
+    await user.click(screen.getByRole('button', { name: '背景音' }));
+    await user.click(screen.getByRole('button', { name: '燃料' }));
+    await user.click(screen.getByRole('button', { name: '环境' }));
+    await user.click(screen.getByRole('button', { name: '立即结算' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Unknown settlement error')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('245')).toBeInTheDocument();
+    expect(screen.queryByText('加载中')).not.toBeInTheDocument();
+
+    fetchMock.mockRestore();
+  });
+
+  it('does not allow settling again when today is already settled', async () => {
+    vi.spyOn(dateLib, 'getTodayDateString').mockReturnValue('2026-03-19');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          account: {
+            accountId: 'primary',
+            balance: 245,
+            streakCount: 3,
+            shieldStock: 0,
+            lastSettlementDate: '2026-03-19',
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    render(<TodayPage />);
+
+    expect(await screen.findByText('今日已经结算完成。')).toBeInTheDocument();
+    expect(screen.getByText('请明天再进行新的结算。')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '立即结算' })).not.toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     fetchMock.mockRestore();
   });
 });

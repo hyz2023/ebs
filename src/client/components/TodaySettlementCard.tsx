@@ -36,6 +36,9 @@ export function TodaySettlementCard({
   const [resultContext, setResultContext] = useState<ResultContext | null>(null);
   const [severeViolation, setSevereViolation] = useState(false);
   const [confirmShieldUse, setConfirmShieldUse] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const today = getTodayDateString();
+  const alreadySettledToday = account.lastSettlementDate === today;
 
   const missedItems = useMemo(
     () =>
@@ -47,6 +50,7 @@ export function TodaySettlementCard({
 
   async function submitSettlement(consumeShield: boolean) {
     setIsSubmitting(true);
+    setSubmitError(null);
     const context: ResultContext = {
       missedCount: missedItems.length,
       severeViolation,
@@ -59,13 +63,27 @@ export function TodaySettlementCard({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        eventDate: getTodayDateString(),
+        eventDate: today,
         missedItems,
         severeViolation,
         consumeShield,
         note: null,
       }),
     });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      const message =
+        payload.error === 'Settlement already recorded for this date'
+          ? '今天已经结算过了。'
+          : payload.error ?? '结算失败，请稍后重试。';
+
+      setSubmitError(message);
+      setIsSubmitting(false);
+      setConfirmShieldUse(false);
+      return;
+    }
+
     const data = (await response.json()) as SettlementResponse;
 
     setResult(data);
@@ -161,6 +179,17 @@ export function TodaySettlementCard({
     );
   }
 
+  if (alreadySettledToday) {
+    return (
+      <div className="placeholder-block">
+        <h2>今日结算</h2>
+        <p className="result-balance">今日已经结算完成。</p>
+        <p>请明天再进行新的结算。</p>
+        <p className="summary">上次结算日期：{account.lastSettlementDate}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="placeholder-block">
       <h2>今日结算</h2>
@@ -181,13 +210,22 @@ export function TodaySettlementCard({
           );
         })}
       </div>
-      <button
-        className={`toggle-pill${severeViolation ? ' toggle-pill--active' : ''}`}
-        onClick={() => setSevereViolation((current) => !current)}
-        type="button"
+      <div
+        className={`danger-panel${severeViolation ? ' danger-panel--active' : ''}`}
       >
-        严重违规 / 熔断
-      </button>
+        <div className="danger-panel__copy">
+          <h3>严重违规 / 熔断</h3>
+          <p>用于一票否决的严重违规情况，将直接按等级 3 结算并清零连胜。</p>
+        </div>
+        <button
+          aria-pressed={severeViolation}
+          className={`danger-toggle${severeViolation ? ' danger-toggle--active' : ''}`}
+          onClick={() => setSevereViolation((current) => !current)}
+          type="button"
+        >
+          {severeViolation ? '取消熔断' : '启用熔断'}
+        </button>
+      </div>
       <button
         className="primary-button"
         disabled={isSubmitting}
@@ -196,6 +234,7 @@ export function TodaySettlementCard({
       >
         立即结算
       </button>
+      {submitError ? <p className="error-text">{submitError}</p> : null}
       <p className="summary">
         上次结算日期：{account.lastSettlementDate ?? '尚未结算'}
       </p>
