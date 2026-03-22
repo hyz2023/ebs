@@ -21,8 +21,7 @@ export function LedgerPage() {
 
   return (
     <section className="page-card">
-      <p className="eyebrow">流水</p>
-      <h1>事件流水</h1>
+      <h1>流水</h1>
       <p className="summary">查看每日结算和外部奖惩记录。</p>
       <ExternalAdjustmentForm onCreated={refresh} />
       {loading || !data ? (

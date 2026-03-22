@@ -147,3 +147,30 @@ export function getAssetsReport(db: Database.Database) {
     },
   };
 }
+
+export function getShieldsReport(db: Database.Database) {
+  const rows = db
+    .prepare(
+      `
+        SELECT event_date, event_type, shield_after, note
+        FROM ledger_events
+        WHERE event_type IN ('SHIELD_GRANTED', 'SHIELD_CONSUMED')
+        ORDER BY event_date DESC, id DESC
+      `,
+    )
+    .all() as Array<{
+      event_date: string;
+      event_type: string;
+      shield_after: number;
+      note: string | null;
+    }>;
+
+  return {
+    shieldEvents: rows.map((row) => ({
+      eventDate: row.event_date,
+      eventType: row.event_type,
+      shieldAfter: row.shield_after,
+      note: row.note,
+    })),
+  };
+}

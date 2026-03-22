@@ -5,6 +5,7 @@ import {
   getAssetsReport,
   getCalendarReport,
   getLedgerReport,
+  getShieldsReport,
 } from '../domain/reports';
 
 export function createReportsRouter(db: Database.Database) {
@@ -21,6 +22,10 @@ export function createReportsRouter(db: Database.Database) {
 
   router.get('/assets', (_request, response) => {
     response.json(getAssetsReport(db));
+  });
+
+  router.get('/shields', (_request, response) => {
+    response.json(getShieldsReport(db));
   });
 
   return router;

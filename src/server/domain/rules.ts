@@ -18,8 +18,8 @@ export function calculateSettlementLevel(
 
 export function isNoviceProtectionDate(eventDate: string) {
   return (
-    eventDate >= APP_CONFIG.noviceProtectionStart &&
-    eventDate <= APP_CONFIG.noviceProtectionEnd
+    eventDate >= '2026-03-21' &&
+    eventDate <= '2026-03-23'
   );
 }
 

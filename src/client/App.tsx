@@ -4,8 +4,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import { BottomNav } from './components/BottomNav';
 import { AssetsPage } from './routes/AssetsPage';
-import { CalendarPage } from './routes/CalendarPage';
 import { LedgerPage } from './routes/LedgerPage';
+import { RulesPage } from './routes/RulesPage';
 import { TodayPage } from './routes/TodayPage';
 
 export default function App() {
@@ -15,9 +15,9 @@ export default function App() {
         <div className="app-frame">
           <Routes>
             <Route path="/" element={<TodayPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/assets" element={<AssetsPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
+            <Route path="/rules" element={<RulesPage />} />
           </Routes>
           <BottomNav />
         </div>

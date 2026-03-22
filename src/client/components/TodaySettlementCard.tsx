@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import { getTodayDateString } from '../lib/date';
 import type { AccountSummary } from '../hooks/useAccount';
 
 const checklistItems = [
-  { key: 'launch', label: '起航' },
-  { key: 'background-sound', label: '背景音' },
-  { key: 'fuel', label: '燃料' },
-  { key: 'environment', label: '环境' },
+  { key: 'launch', label: '静音起/收航', hint: '出门进门情绪稳定' },
+  { key: 'background-sound', label: '背景音过滤', hint: '不回怼、不翻白眼' },
+  { key: 'fuel', label: '燃料与领地', hint: '正常进食 + 整理书包衣物' },
+  { key: 'environment', label: '环境友好', hint: '无摔门砸物尖叫' },
 ] as const;
+
+const SETTLEMENT_START_DATE = '2026-03-21';
 
 type SettlementResponse = {
   level: number;
@@ -22,6 +24,19 @@ type ResultContext = {
   severeViolation: boolean;
   consumeShield: boolean;
 };
+
+function getDateRange(start: string, end: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(start);
+  const endDate = new Date(end);
+  
+  while (current <= endDate) {
+    dates.push(current.toLocaleDateString('en-CA'));
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+}
 
 export function TodaySettlementCard({
   account,
@@ -37,8 +52,16 @@ export function TodaySettlementCard({
   const [severeViolation, setSevereViolation] = useState(false);
   const [confirmShieldUse, setConfirmShieldUse] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
+  
   const today = getTodayDateString();
-  const alreadySettledToday = account.lastSettlementDate === today;
+  const availableDates = useMemo(() => {
+    const allDates = getDateRange(SETTLEMENT_START_DATE, today);
+    return allDates.filter(date => date !== account.lastSettlementDate);
+  }, [account.lastSettlementDate, today]);
+  
+  const isTodaySelected = selectedDate === today;
+  const alreadySettledSelectedDate = account.lastSettlementDate === selectedDate;
 
   const missedItems = useMemo(
     () =>
@@ -63,7 +86,7 @@ export function TodaySettlementCard({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        eventDate: today,
+        eventDate: selectedDate,
         missedItems,
         severeViolation,
         consumeShield,
@@ -179,12 +202,12 @@ export function TodaySettlementCard({
     );
   }
 
-  if (alreadySettledToday) {
+  if (alreadySettledSelectedDate) {
     return (
       <div className="placeholder-block">
-        <h2>今日结算</h2>
-        <p className="result-balance">今日已经结算完成。</p>
-        <p>请明天再进行新的结算。</p>
+        <h2>结算日期 <span className="date-suffix">{selectedDate}</span></h2>
+        <p className="result-balance">{selectedDate === today ? '今日' : '该日期'}已经结算完成。</p>
+        <p>请选择其他未结算的日期。</p>
         <p className="summary">上次结算日期：{account.lastSettlementDate}</p>
       </div>
     );
@@ -192,8 +215,36 @@ export function TodaySettlementCard({
 
   return (
     <div className="placeholder-block">
-      <h2>今日结算</h2>
-      <p>完成今天的勾选后提交结算。</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <h2 style={{ margin: 0 }}>{isTodaySelected ? '今日结算' : '补结算'}</h2>
+        <select
+          value={selectedDate}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setCheckedItems([]);
+            setSevereViolation(false);
+            setSubmitError(null);
+          }}
+          style={{
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+          }}
+        >
+          {availableDates.map((date) => {
+            const isToday = date === today;
+            return (
+              <option key={date} value={date}>
+                {isToday ? `今天 (${date})` : date}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+      <p>{isTodaySelected ? '完成今天的勾选后提交结算。' : `补结算 ${selectedDate} 的记录。`}</p>
       <div className="checklist-grid">
         {checklistItems.map((item) => {
           const active = checkedItems.includes(item.key);
@@ -205,7 +256,8 @@ export function TodaySettlementCard({
               onClick={() => toggleItem(item.key)}
               type="button"
             >
-              {item.label}
+              <span className="toggle-pill__label">{item.label}</span>
+              <span className="toggle-pill__hint">{item.hint}</span>
             </button>
           );
         })}
@@ -220,7 +272,13 @@ export function TodaySettlementCard({
         <button
           aria-pressed={severeViolation}
           className={`danger-toggle${severeViolation ? ' danger-toggle--active' : ''}`}
-          onClick={() => setSevereViolation((current) => !current)}
+          onClick={() => {
+            if (!severeViolation) {
+              // 启用熔断时清空所有选中的日常项
+              setCheckedItems([]);
+            }
+            setSevereViolation((current) => !current);
+          }}
           type="button"
         >
           {severeViolation ? '取消熔断' : '启用熔断'}
@@ -232,11 +290,13 @@ export function TodaySettlementCard({
         onClick={handleSubmit}
         type="button"
       >
-        立即结算
+        {isSubmitting ? '结算中...' : (isTodaySelected ? '立即结算' : '补结算')}
       </button>
       {submitError ? <p className="error-text">{submitError}</p> : null}
       <p className="summary">
-        上次结算日期：{account.lastSettlementDate ?? '尚未结算'}
+        {isTodaySelected 
+          ? `上次结算日期：${account.lastSettlementDate ?? '尚未结算'}`
+          : `可补结算日期：${availableDates.length} 个`}
       </p>
       {confirmShieldUse ? (
         <div className="confirm-panel">

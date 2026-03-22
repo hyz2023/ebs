@@ -11,9 +11,8 @@ export function TodayPage() {
 
   return (
     <section className="page-card">
-      <p className="eyebrow">今日</p>
       <h1>EBS</h1>
-      <p className="summary">精英住校生系统</p>
+      <p className="summary">精英住校生系统 — 社交防火墙升级挑战</p>
       {inNoviceWindow ? (
         <div className="banner banner--novice">
           新手保护期进行中：只要不是等级 3，今天都按 +25 计算。

@@ -3,5 +3,5 @@ export function getTodayDateString() {
 }
 
 export function isNoviceProtectionDate(date: string) {
-  return date >= '2026-03-20' && date <= '2026-03-22';
+  return date >= '2026-03-21' && date <= '2026-03-23';
 }
