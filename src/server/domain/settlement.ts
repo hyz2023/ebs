@@ -61,7 +61,15 @@ export function settleDay(
       throw new Error('Primary account not found');
     }
 
-    if (row.last_settlement_date === payload.eventDate) {
+    // Check ledger_events table for existing settlement (not just last_settlement_date)
+    const existingSettlement = db
+      .prepare(
+        `SELECT 1 FROM ledger_events
+         WHERE account_id = ? AND event_date = ? AND event_type = 'DAILY_SETTLEMENT'`,
+      )
+      .get(row.account_id, payload.eventDate);
+
+    if (existingSettlement) {
       throw new Error('Settlement already recorded for this date');
     }
 

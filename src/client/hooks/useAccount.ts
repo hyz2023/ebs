@@ -6,6 +6,7 @@ export type AccountSummary = {
   streakCount: number;
   shieldStock: number;
   lastSettlementDate: string | null;
+  settledDates: string[];
 };
 
 export function useAccount() {

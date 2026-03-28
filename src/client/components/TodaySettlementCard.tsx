@@ -57,11 +57,12 @@ export function TodaySettlementCard({
   const today = getTodayDateString();
   const availableDates = useMemo(() => {
     const allDates = getDateRange(SETTLEMENT_START_DATE, today);
-    return allDates.filter(date => date !== account.lastSettlementDate);
-  }, [account.lastSettlementDate, today]);
+    const settledSet = new Set(account.settledDates ?? []);
+    return allDates.filter(date => !settledSet.has(date));
+  }, [account.settledDates, today]);
   
   const isTodaySelected = selectedDate === today;
-  const alreadySettledSelectedDate = account.lastSettlementDate === selectedDate;
+  const alreadySettledSelectedDate = (account.settledDates ?? []).includes(selectedDate);
 
   const missedItems = useMemo(
     () =>

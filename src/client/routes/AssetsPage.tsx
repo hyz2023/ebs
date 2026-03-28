@@ -20,7 +20,7 @@ function getCurrentMonth() {
 }
 
 export function AssetsPage() {
-  const [currentMonth, setCurrentMonth] = useState('2026-04');
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth());
   const { data: calendarData, loading: calendarLoading } = useReports<{
     days: CalendarDay[];
   }>(`/api/reports/calendar?month=${currentMonth}`);
